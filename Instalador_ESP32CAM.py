@@ -148,16 +148,31 @@ class MouthTrackerLauncher:
                         match = re.search(r'http://([\d\.]+)', buffer_serial)
                         if match:
                             ip_detectado = match.group(1)
-                    
+
                             try:
-                                pasta_atual = os.path.dirname(os.path.abspath(__file__))
+                                # Correção para funcionar tanto em .py quanto em .exe compilado
+                                import sys
+                                if hasattr(sys, '_MEIPASS'):
+                                    pasta_atual = os.path.dirname(sys.executable)
+                                else:
+                                    pasta_atual = os.path.dirname(os.path.abspath(__file__))
+                                    
                                 ip_file = os.path.join(pasta_atual, "last_ip.txt")
                                 with open(ip_file, "w") as f:
                                     f.write(str(ip_detectado).strip())
+
                             except Exception:
                                 pass
-                    
+
+                            def executar_transicao():
+                                __import__('subprocess').Popen([__import__('sys').executable, "MouthTracker.py"], cwd=pasta_atual)
+                                self.root.destroy()
+
+                            # ESPERA 3000 MILISSEGUNDOS (3 SEGUNDOS) ANTES DE EXECUTAR A FUNÇÃO
+                            self.root.after(6000, executar_transicao)
+
                             break
+
                 time.sleep(0.1)
             ser.close()
 
@@ -168,63 +183,11 @@ class MouthTrackerLauncher:
             self.log_serial(f"\n>>> IP Encontrado: {ip_detectado}\n>>> Ajustando parâmetros internos do hardware...")
             time.sleep(1)
             
-            try:
-                urllib.request.urlopen(f"http://{ip_detectado}/control?var=framesize&val=10", timeout=2)
-                urllib.request.urlopen(f"http://{ip_detectado}/control?var=led_intensity&val=20", timeout=2)
-                self.log_serial("\n>>> Resolução configurada para VGA e LED de flash ativado!\n")
-            except Exception as e_cmd:
-                self.log_serial(f"\n>>> [Aviso] Erro ao aplicar ajustes de imagem: {e_cmd}\n")
-
-            self.abrir_janela_video(ip_detectado)
-
         except Exception as e:
             self.atualizar_status("Ocorreu um erro!", "#f38ba8")
             self.log_serial(f"\n[ERRO] Detalhes: {e}\n")
             messagebox.showerror("Erro MouthTracker", f"Detalhes: {e}")
             self.btn_instalar.config(state='normal')
-
-    def abrir_janela_video(self, ip):
-        self.window_video = tk.Toplevel(self.root)
-        self.window_video.title("MouthTracker - Stream Ativo")
-        self.window_video.geometry("640x480")
-        self.window_video.configure(bg="#121214")
-        
-        self.lbl_video = tk.Label(self.window_video, bg="#121214")
-        self.lbl_video.pack(fill="both", expand=True)
-
-        self.window_video.protocol("WM_DELETE_WINDOW", self.fechar_janela_video)
-
-        url_stream = f"http://{ip}:81/stream"
-        self.cap = cv2.VideoCapture(url_stream)
-        
-        if not self.cap.isOpened():
-            url_stream = f"http://{ip}/stream"
-            self.cap = cv2.VideoCapture(url_stream)
-
-        self.rodando_video = True
-        self.atualizar_frame_video()
-
-    def atualizar_frame_video(self):
-        if self.rodando_video and self.cap and self.cap.isOpened():
-            ret, frame = self.cap.read()
-            if ret:
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                img_pil = Image.fromarray(frame_rgb)
-                img_tk = ImageTk.PhotoImage(image=img_pil)
-                
-                self.lbl_video.img_tk = img_tk
-                self.lbl_video.config(image=img_tk)
-            
-            self.window_video.after(15, self.atualizar_frame_video)
-
-    def fechar_janela_video(self):
-        self.rodando_video = False
-        if self.cap:
-            self.cap.release()
-        if self.window_video:
-            self.window_video.destroy()
-        self.btn_instalar.config(state='normal')
-        self.atualizar_status("Dispositivo desconectado.", "#8d8d99")
 
 if __name__ == "__main__":
     root = tk.Tk()
