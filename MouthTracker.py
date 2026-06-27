@@ -73,7 +73,7 @@ def checar_e_iniciar():
                     cap = cv2.VideoCapture(url_stream)
                     if cap.isOpened():
                         rotas_led = [
-                            "/control?var=led_intensity&val=10",
+                            "/control?var=led_intensity&val=4",
                             "/control?var=flash&val=0",
                             "/control?var=led&val=1",
                             "/led/on"
